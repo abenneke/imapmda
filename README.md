@@ -11,13 +11,13 @@ After discussing this back and forth with IONOS support, they could not offer me
 
 **Example**
 
-* Fetchmail fetches a mail from `someone@somewhere.com` to `mymail@web.de`.
-* Fetchmail then tries to forward this mail to `me@mydomain.com` using the local MTA (in this case postfix).
+* Fetchmail fetches a mail from `someone@somewhere.com` to `mymail@web.de` from `imap.web.de`
+* and then tries to forward this mail to `me@mydomain.com` using the local MTA (in this case postfix).
 * Postfix is configured to deliver mail to the `smtp` server with `user@mydomain.com` as login.
 * But with the new policy, the `smtp` server will reject such a mail with `Sender address is not allowed`.
-    * because `*@somewhere.com` does not match `@mydomain.com`.
+    * because `@somewhere.com` does not match `@mydomain.com`.
 
-My workaround is now not to use SMTP for forwarding, but to append the mails directly to the users' IMAP folders.
+My workaround is now not to use SMTP for forwarding, but to append the mails directly to a users' IMAP folder.
 
 ## Preconditions
 
@@ -26,9 +26,15 @@ My workaround is now not to use SMTP for forwarding, but to append the mails dir
 
 ## Setup
 
-* Copy the `mapmda.pl` to a folder (e. g. `/usr/local/bin`)
+* Copy the `imapmda.pl` to a folder (e. g. `/usr/local/bin`)
 * Make it executable for the same user that runs the fetchmail daemon (`fetchmail` in my case)
-* Create a `/etc/imapmda/localuser` file (directory configured in `mapmda.pl`) for each user `localuser` you want to deliver mails to.
+
+```
+    chown fetchmail.root /usr/local/bin/imapmda.pl
+    chmod 700 /usr/local/bin/imapmda.pl
+```
+
+* Create a `/etc/imapmda/localuser` file (directory configured in `imapmda.pl`) for each user `localuser` you want to deliver mails to.
 * These files have the following content:
 
 ```
@@ -41,6 +47,13 @@ My workaround is now not to use SMTP for forwarding, but to append the mails dir
 ```
 
 * Make `/etc/imapmda/` and the files in it readable only by the user running the fetchmail daemon (`fetchmail` in my case).
+
+```
+    chown fetchmail.root /etc/imapmda/ /etc/imapmda/*
+    chmod 700 /etc/imapmda/
+    chmod 600 /etc/imapmda/*
+```
+
 * Add `mda "/usr/local/bin/imapmda.pl %T"` to your `/etc/fetchmailrc`.
 * Replace the local mail addresses with the `localuser` names
 
@@ -58,7 +71,7 @@ After this, my `/etc/fetchmailrc` basically looks like this
 
 * Fetchmail calls the script with the `localuser` as a command line parameter (`%T` in the `mda` configuration)
 * and passes the downloaded mail to `STDIN`.
-* `mapmda.pl` reads the configuration file,
+* `imapmda.pl` reads the configuration file,
 * joins the lines of the mail into a single `$mail` variable,
 * connects to the IMAP server,
 * and appends the mail to the configured folder.
@@ -71,4 +84,10 @@ After this, my `/etc/fetchmailrc` basically looks like this
 * Fetchmail will log the (error) output of the script to its usual logging target (`/var/log/mail.log` in my case).
 * Look there first to see what went wrong.
 
-*Hope this helps someone!*
+## Limitations
+
+* Obviously this only works if you know the user's IMAP credentials. 
+* However, in a fetchmail scenario you already know all the credentials of the source accounts.
+* So knowing the credentials of the target account should not make much difference.
+
+*Hope this still helps someone!*
